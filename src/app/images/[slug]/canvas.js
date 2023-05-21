@@ -1,9 +1,11 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Edit, Send, X } from 'react-feather'
 import Draggable from 'react-draggable'
+
+import useClickOutside from '@/hooks/useClickOutside'
 
 function CommentForm({ value, onSubmit, onChange, onBlur }) {
   return (
@@ -16,7 +18,7 @@ function CommentForm({ value, onSubmit, onChange, onBlur }) {
         value={value}
         onChange={onChange}
         onBlur={onBlur}
-        className="bg-transparent outline-none w-32"
+        className="bg-transparent outline-none w-full"
       />
       <button type="submit" className="ml-2">
         <Send size={16} className="rotate-45" />
@@ -28,6 +30,21 @@ function CommentForm({ value, onSubmit, onChange, onBlur }) {
 export default function Canvas({ slug }) {
   const [annotations, setAnnotations] = useState([])
 
+  const hasOpenAnnotation = annotations.some(
+    (annotation) => annotation.open === true,
+  )
+
+  const annotationRef = useRef(null)
+
+  useClickOutside(annotationRef, () => {
+    const newAnnotations = annotations.map((a) => ({
+      ...a,
+      open: false,
+      comments: a.comments.filter((c) => c.text),
+    }))
+    setAnnotations(newAnnotations.filter((a) => a.comments.length))
+  })
+
   const handleClick = (e) => {
     const image = e.currentTarget
     const rect = image.getBoundingClientRect()
@@ -38,23 +55,27 @@ export default function Canvas({ slug }) {
 
     setAnnotations([
       ...annotations,
-      { x: xPercent, y: yPercent, text: '', open: true, editable: true },
+      {
+        x: xPercent,
+        y: yPercent,
+        open: true,
+        comments: [{ text: '', editable: true }],
+      },
     ])
   }
 
-  const handleInputChange = (e, index) => {
+  const handleInputChange = (e, annotationIndex, commentIndex) => {
     const newAnnotations = [...annotations]
-    newAnnotations[index].text = e.target.value
+    newAnnotations[annotationIndex].comments[commentIndex].text = e.target.value
     setAnnotations(newAnnotations)
   }
 
-  const handleInputBlur = (index) => {
+  const handleInputBlur = (annotationIndex, commentIndex) => {
     const newAnnotations = [...annotations]
-    newAnnotations[index].open = false
-    newAnnotations[index].editable = false
+    newAnnotations[annotationIndex].comments[commentIndex].editable = false
 
-    if (!newAnnotations[index].text) {
-      newAnnotations.splice(index, 1)
+    if (!newAnnotations[annotationIndex].comments[commentIndex].text) {
+      newAnnotations[annotationIndex].comments.splice(commentIndex, 1)
     }
 
     setAnnotations(newAnnotations)
@@ -70,10 +91,6 @@ export default function Canvas({ slug }) {
     setAnnotations(newAnnotations)
   }
 
-  const hasOpenAnnotation = annotations.some(
-    (annotation) => annotation.open === true,
-  )
-
   return (
     <div className="relative">
       <Image
@@ -82,12 +99,16 @@ export default function Canvas({ slug }) {
         alt=""
         height={640}
         width={480}
-        onClick={handleClick}
+        onClick={hasOpenAnnotation ? undefined : handleClick}
         className="bg-slate-200"
       />
-      {annotations.map((annotation, i) => (
-        <Draggable key={i} onStop={(e, data) => handleDragEnd(e, data, i)}>
+      {annotations.map((annotation, annotationIndex) => (
+        <Draggable
+          key={annotationIndex}
+          onStop={(e, data) => handleDragEnd(e, data, annotationIndex)}
+        >
           <div
+            ref={annotation.open ? annotationRef : null}
             style={{
               position: 'absolute',
               left: `${annotation.x}%`,
@@ -98,46 +119,70 @@ export default function Canvas({ slug }) {
             ${hasOpenAnnotation && !annotation.open ? ' hidden' : ''}`}
           >
             {annotation.open ? (
-              <div>
-                <div className="flex justify-end mb-2 border-b border-slate-50">
+              <div className="w-48">
+                <div className="flex justify-end mb-4 p-2 border-b border-slate-50">
                   <button
                     type="button"
                     onClick={() => {
                       const newAnnotations = [...annotations]
-                      newAnnotations[i].open = false
-                      newAnnotations[i].editable = false
+                      newAnnotations[annotationIndex].open = false
                       setAnnotations(newAnnotations)
                     }}
                   >
                     <X size={16} />
                   </button>
                 </div>
-                {annotation.editable ? (
+                {annotation.comments.map((comment, commentIndex) => (
+                  <div key={commentIndex} className="p-2">
+                    {comment.editable ? (
+                      <CommentForm
+                        value={comment.text}
+                        onChange={(e) =>
+                          handleInputChange(e, annotationIndex, commentIndex)
+                        }
+                        onBlur={() =>
+                          handleInputBlur(annotationIndex, commentIndex)
+                        }
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          handleInputBlur(annotationIndex, commentIndex)
+                        }}
+                      />
+                    ) : (
+                      <div className="flex items-center">
+                        {comment.text}
+                        <button
+                          type="button"
+                          className="ml-2"
+                          onClick={() => {
+                            const newAnnotations = [...annotations]
+                            newAnnotations[annotationIndex].comments[
+                              commentIndex
+                            ].editable = true
+                            setAnnotations(newAnnotations)
+                          }}
+                        >
+                          <Edit size={16} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div className="rounded p-2 bg-slate-700">
                   <CommentForm
-                    value={annotation.text}
-                    onChange={(e) => handleInputChange(e, i)}
-                    onBlur={() => handleInputBlur(i)}
                     onSubmit={(e) => {
                       e.preventDefault()
-                      handleInputBlur(i)
+
+                      const newAnnotations = [...annotations]
+                      newAnnotations[annotationIndex].comments.push({
+                        text: e.target.text.value,
+                      })
+                      setAnnotations(newAnnotations)
+
+                      e.target.reset()
                     }}
                   />
-                ) : (
-                  <div className="flex items-center">
-                    {annotation.text}
-                    <button
-                      type="button"
-                      className="ml-2"
-                      onClick={() => {
-                        const newAnnotations = [...annotations]
-                        newAnnotations[i].editable = true
-                        setAnnotations(newAnnotations)
-                      }}
-                    >
-                      <Edit size={16} />
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
             ) : (
               <button
@@ -145,11 +190,11 @@ export default function Canvas({ slug }) {
                 className="px-2"
                 onClick={() => {
                   const newAnnotations = [...annotations]
-                  newAnnotations[i].open = true
+                  newAnnotations[annotationIndex].open = true
                   setAnnotations(newAnnotations)
                 }}
               >
-                {i + 1}
+                {annotationIndex + 1}
               </button>
             )}
           </div>

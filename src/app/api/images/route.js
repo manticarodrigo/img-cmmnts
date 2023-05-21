@@ -1,4 +1,4 @@
-import { getImages } from './get'
+import { getImages } from './model'
 
 export async function GET(_) {
   const data = await getImages()

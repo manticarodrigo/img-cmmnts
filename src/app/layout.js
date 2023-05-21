@@ -2,7 +2,7 @@ import './globals.css'
 
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
-import { getImages } from '@/app/api/images/get'
+import { getImages } from '@/app/api/images/model'
 import RootNav from '@/app/nav'
 
 const inter = Inter({ subsets: ['latin'] })

@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Edit, Send, X } from 'react-feather'
 import Draggable from 'react-draggable'
 
@@ -27,8 +27,19 @@ function CommentForm({ value, onSubmit, onChange, onBlur }) {
   )
 }
 
-export default function Canvas({ slug }) {
-  const [annotations, setAnnotations] = useState([])
+export default function Canvas({ slug, annotations: initialAnnotations = [] }) {
+  const [annotations, setAnnotations] = useState(initialAnnotations)
+
+  useEffect(() => {
+    const updateDb = async () => {
+      const response = await fetch('/api/annotations', {
+        method: 'POST',
+        body: JSON.stringify({ slug, annotations }),
+      })
+      const data = await response.json()
+    }
+    updateDb()
+  }, [slug, annotations])
 
   const hasOpenAnnotation = annotations.some(
     (annotation) => annotation.open === true,

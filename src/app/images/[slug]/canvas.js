@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
-import { Edit, Send, X } from 'react-feather'
+import { Edit, Send, X, Trash } from 'react-feather'
 import Draggable from 'react-draggable'
 
 import useClickOutside from '@/hooks/useClickOutside'
@@ -27,18 +27,20 @@ function CommentForm({ value, onSubmit, onChange, onBlur }) {
   )
 }
 
-export default function Canvas({ slug, annotations: initialAnnotations = [] }) {
-  const [annotations, setAnnotations] = useState(initialAnnotations)
+export default function Canvas({ slug, annotations: initialAnnotations }) {
+  const [annotations, setAnnotations] = useState(initialAnnotations || [])
+
+  const mounted = useRef(false)
 
   useEffect(() => {
-    const updateDb = async () => {
-      const response = await fetch('/api/annotations', {
+    if (mounted.current) {
+      fetch('/api/annotations', {
         method: 'POST',
         body: JSON.stringify({ slug, annotations }),
       })
-      const data = await response.json()
+    } else {
+      mounted.current = true
     }
-    updateDb()
   }, [slug, annotations])
 
   const hasOpenAnnotation = annotations.some(
@@ -134,6 +136,18 @@ export default function Canvas({ slug, annotations: initialAnnotations = [] }) {
                 <div className="flex justify-end mb-4 p-2 border-b border-slate-50">
                   <button
                     type="button"
+                    className="ml-2"
+                    onClick={() => {
+                      const newAnnotations = [...annotations]
+                      newAnnotations.splice(annotationIndex, 1)
+                      setAnnotations(newAnnotations)
+                    }}
+                  >
+                    <Trash size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="ml-2"
                     onClick={() => {
                       const newAnnotations = [...annotations]
                       newAnnotations[annotationIndex].open = false
@@ -174,6 +188,20 @@ export default function Canvas({ slug, annotations: initialAnnotations = [] }) {
                           }}
                         >
                           <Edit size={16} />
+                        </button>
+                        <button
+                          type="button"
+                          className="ml-2"
+                          onClick={() => {
+                            const newAnnotations = [...annotations]
+                            newAnnotations[annotationIndex].comments.splice(
+                              commentIndex,
+                              1,
+                            )
+                            setAnnotations(newAnnotations)
+                          }}
+                        >
+                          <Trash size={16} />
                         </button>
                       </div>
                     )}

@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useState } from 'react'
 import { Edit, Send } from 'react-feather'
+import Draggable from 'react-draggable'
 
 export default function Canvas({ slug }) {
   const [annotations, setAnnotations] = useState([])
@@ -38,6 +39,16 @@ export default function Canvas({ slug }) {
     setAnnotations(newAnnotations)
   }
 
+  const handleStop = (e, data, index) => {
+    const { deltaX, deltaY } = data
+    const xPercent = annotations[index].x + (deltaX / 480) * 100
+    const yPercent = annotations[index].y + (deltaY / 640) * 100
+    const newAnnotations = [...annotations]
+    newAnnotations[index].x = xPercent
+    newAnnotations[index].y = yPercent
+    setAnnotations(newAnnotations)
+  }
+
   return (
     <div className="relative">
       <Image
@@ -50,54 +61,55 @@ export default function Canvas({ slug }) {
         className="bg-slate-200"
       />
       {annotations.map((annotation, i) => (
-        <div
-          key={i}
-          style={{
-            position: 'absolute',
-            left: `${annotation.x}%`,
-            top: `${annotation.y}%`,
-          }}
-          className="rounded-tr rounded-br rounded-bl p-2 text-slate-50 bg-slate-800/80 shadow whitespace-nowrap"
-        >
-          {annotation.editable ? (
-            <form
-              className="flex items-center"
-              onSubmit={(e) => {
-                e.preventDefault()
-                handleInputBlur(i)
-              }}
-            >
-              <input
-                autoFocus
-                type="text"
-                name="text"
-                placeholder="Add a note..."
-                value={annotation.text}
-                onChange={(e) => handleInputChange(e, i)}
-                onBlur={() => handleInputBlur(i)}
-                className="bg-transparent outline-none w-32"
-              />
-              <button type="submit" className="ml-2">
-                <Send size={16} className="rotate-45" />
-              </button>
-            </form>
-          ) : (
-            <div className="flex items-center">
-              {annotation.text}
-              <button
-                type="button"
-                className="ml-2"
-                onClick={() => {
-                  const newAnnotations = [...annotations]
-                  newAnnotations[i].editable = true
-                  setAnnotations(newAnnotations)
+        <Draggable key={i} onStop={(e, data) => handleStop(e, data, i)}>
+          <div
+            style={{
+              position: 'absolute',
+              left: `${annotation.x}%`,
+              top: `${annotation.y}%`,
+            }}
+            className="rounded-tr rounded-br rounded-bl p-2 text-slate-50 bg-slate-800/80 shadow whitespace-nowrap"
+          >
+            {annotation.editable ? (
+              <form
+                className="flex items-center"
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleInputBlur(i)
                 }}
               >
-                <Edit size={16} />
-              </button>
-            </div>
-          )}
-        </div>
+                <input
+                  autoFocus
+                  type="text"
+                  name="text"
+                  placeholder="Add a note..."
+                  value={annotation.text}
+                  onChange={(e) => handleInputChange(e, i)}
+                  onBlur={() => handleInputBlur(i)}
+                  className="bg-transparent outline-none w-32"
+                />
+                <button type="submit" className="ml-2">
+                  <Send size={16} className="rotate-45" />
+                </button>
+              </form>
+            ) : (
+              <div className="flex items-center">
+                {annotation.text}
+                <button
+                  type="button"
+                  className="ml-2"
+                  onClick={() => {
+                    const newAnnotations = [...annotations]
+                    newAnnotations[i].editable = true
+                    setAnnotations(newAnnotations)
+                  }}
+                >
+                  <Edit size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+        </Draggable>
       ))}
     </div>
   )
